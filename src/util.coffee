@@ -152,13 +152,13 @@ class Util extends SimpleModule
       result = callback n
       break if result == false
 
-  indent: () ->
-    $blockEl = @editor.util.closestBlockEl()
+  indentLine: ($blockEl = @editor.util.closestBlockEl()) ->
     return false unless $blockEl and $blockEl.length > 0
 
     if $blockEl.is('pre')
       spaceNode = document.createTextNode '\u00A0\u00A0'
       @editor.selection.insertNode spaceNode
+
     else if $blockEl.is('li')
       $parentLi = $blockEl.prev('li')
       return false if $parentLi.length < 1
@@ -173,7 +173,6 @@ class Util extends SimpleModule
         $('<' + tagName + '/>')
           .append($blockEl)
           .appendTo($parentLi)
-
       @editor.selection.restore()
     else if $blockEl.is 'p, h1, h2, h3, h4'
       indentLevel = $blockEl.attr('data-indent') ? 0
@@ -191,11 +190,19 @@ class Util extends SimpleModule
       spaceNode = document.createTextNode '\u00A0\u00A0\u00A0\u00A0'
       @editor.selection.insertNode spaceNode
 
+  indent: () ->
+    $nodes = @getRangeNode()
+
+    if $nodes
+      $nodes.each (index, ele) =>
+        @indentLine $(ele)
+    else
+      return false unless @indentLine()
+
     @editor.trigger 'valuechanged'
     true
 
-  outdent: () ->
-    $blockEl = @editor.util.closestBlockEl()
+  outdentLine: ($blockEl = @editor.util.closestBlockEl())->
     return false unless $blockEl and $blockEl.length > 0
 
     if $blockEl.is('pre')
@@ -234,6 +241,15 @@ class Util extends SimpleModule
       @editor.selection.setRangeAtEndOf $prevTd
     else
       return false
+
+  outdent: () ->
+    $nodes = @getRangeNode()
+
+    if $nodes
+      $nodes.each (index, ele) =>
+        @outdentLine $(ele)
+    else
+      return false unless @outdentLine()
 
     @editor.trigger 'valuechanged'
     true
@@ -337,4 +353,12 @@ class Util extends SimpleModule
       lastMatch = match
 
     $.trim result
+
+  getRangeNode: (range = @editor.selection.getRange()) ->
+    return null if range.collapsed or range.startContainer is range.endContainer
+
+    $startNode = if range.startContainer.nodeType is 3 then $(range.startContainer).parent() else $(range.startContainer)
+    $endNode = if range.endContainer.nodeType is 3 then $(range.endContainer).parent() else $(range.endContainer)
+
+    return $startNode.nextUntil($endNode).add($startNode).add($endNode)
 

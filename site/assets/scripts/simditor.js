@@ -1728,15 +1728,17 @@ Util = (function(superClass) {
     return results1;
   };
 
-  Util.prototype.indent = function() {
-    var $blockEl, $childList, $nextTd, $parentLi, $td, indentLevel, range, ref, spaceNode, tagName;
-    $blockEl = this.editor.util.closestBlockEl();
+  Util.prototype.indentLine = function($blockEl) {
+    var $childList, $nextTd, $parentLi, $td, indentLevel, range, ref, spaceNode, tagName;
+    if ($blockEl == null) {
+      $blockEl = this.editor.util.closestBlockEl();
+    }
     if (!($blockEl && $blockEl.length > 0)) {
       return false;
     }
     if ($blockEl.is('pre')) {
       spaceNode = document.createTextNode('\u00A0\u00A0');
-      this.editor.selection.insertNode(spaceNode);
+      return this.editor.selection.insertNode(spaceNode);
     } else if ($blockEl.is('li')) {
       $parentLi = $blockEl.prev('li');
       if ($parentLi.length < 1) {
@@ -1750,14 +1752,14 @@ Util = (function(superClass) {
       } else {
         $('<' + tagName + '/>').append($blockEl).appendTo($parentLi);
       }
-      this.editor.selection.restore();
+      return this.editor.selection.restore();
     } else if ($blockEl.is('p, h1, h2, h3, h4')) {
       indentLevel = (ref = $blockEl.attr('data-indent')) != null ? ref : 0;
       indentLevel = indentLevel * 1 + 1;
       if (indentLevel > 10) {
         indentLevel = 10;
       }
-      $blockEl.attr('data-indent', indentLevel);
+      return $blockEl.attr('data-indent', indentLevel);
     } else if ($blockEl.is('table')) {
       range = this.editor.selection.getRange();
       $td = $(range.commonAncestorContainer).closest('td');
@@ -1768,18 +1770,36 @@ Util = (function(superClass) {
       if (!($td.length > 0 && $nextTd.length > 0)) {
         return false;
       }
-      this.editor.selection.setRangeAtEndOf($nextTd);
+      return this.editor.selection.setRangeAtEndOf($nextTd);
     } else {
       spaceNode = document.createTextNode('\u00A0\u00A0\u00A0\u00A0');
-      this.editor.selection.insertNode(spaceNode);
+      return this.editor.selection.insertNode(spaceNode);
+    }
+  };
+
+  Util.prototype.indent = function() {
+    var $nodes;
+    $nodes = this.getRangeNode();
+    if ($nodes) {
+      $nodes.each((function(_this) {
+        return function(index, ele) {
+          return _this.indentLine($(ele));
+        };
+      })(this));
+    } else {
+      if (!this.indentLine()) {
+        return false;
+      }
     }
     this.editor.trigger('valuechanged');
     return true;
   };
 
-  Util.prototype.outdent = function() {
-    var $blockEl, $parent, $parentLi, $prevTd, $td, button, indentLevel, range, ref;
-    $blockEl = this.editor.util.closestBlockEl();
+  Util.prototype.outdentLine = function($blockEl) {
+    var $parent, $parentLi, $prevTd, $td, button, indentLevel, range, ref;
+    if ($blockEl == null) {
+      $blockEl = this.editor.util.closestBlockEl();
+    }
     if (!($blockEl && $blockEl.length > 0)) {
       return false;
     }
@@ -1803,14 +1823,14 @@ Util = (function(superClass) {
       if ($parent.children('li').length < 1) {
         $parent.remove();
       }
-      this.editor.selection.restore();
+      return this.editor.selection.restore();
     } else if ($blockEl.is('p, h1, h2, h3, h4')) {
       indentLevel = (ref = $blockEl.attr('data-indent')) != null ? ref : 0;
       indentLevel = indentLevel * 1 - 1;
       if (indentLevel < 0) {
         indentLevel = 0;
       }
-      $blockEl.attr('data-indent', indentLevel);
+      return $blockEl.attr('data-indent', indentLevel);
     } else if ($blockEl.is('table')) {
       range = this.editor.selection.getRange();
       $td = $(range.commonAncestorContainer).closest('td');
@@ -1821,9 +1841,25 @@ Util = (function(superClass) {
       if (!($td.length > 0 && $prevTd.length > 0)) {
         return false;
       }
-      this.editor.selection.setRangeAtEndOf($prevTd);
+      return this.editor.selection.setRangeAtEndOf($prevTd);
     } else {
       return false;
+    }
+  };
+
+  Util.prototype.outdent = function() {
+    var $nodes;
+    $nodes = this.getRangeNode();
+    if ($nodes) {
+      $nodes.each((function(_this) {
+        return function(index, ele) {
+          return _this.outdentLine($(ele));
+        };
+      })(this));
+    } else {
+      if (!this.outdentLine()) {
+        return false;
+      }
     }
     this.editor.trigger('valuechanged');
     return true;
@@ -1947,6 +1983,19 @@ Util = (function(superClass) {
       lastMatch = match;
     }
     return $.trim(result);
+  };
+
+  Util.prototype.getRangeNode = function(range) {
+    var $endNode, $startNode;
+    if (range == null) {
+      range = this.editor.selection.getRange();
+    }
+    if (range.collapsed || range.startContainer === range.endContainer) {
+      return null;
+    }
+    $startNode = range.startContainer.nodeType === 3 ? $(range.startContainer).parent() : $(range.startContainer);
+    $endNode = range.endContainer.nodeType === 3 ? $(range.endContainer).parent() : $(range.endContainer);
+    return $startNode.nextUntil($endNode).add($startNode).add($endNode);
   };
 
   return Util;
